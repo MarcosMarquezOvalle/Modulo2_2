@@ -1,16 +1,32 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
-from typing import Generator
+from collections.abc import Generator
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 
-from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jose import JWTError, jwt
+from fastapi import Depends
+from fastapi import FastAPI
+from fastapi import HTTPException
+from fastapi import status
+from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordRequestForm
+from jose import jwt
+from jose import JWTError
 from passlib.context import CryptContext
-from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import ForeignKey, String, create_engine
-from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
+from sqlalchemy import create_engine
+from sqlalchemy import ForeignKey
+from sqlalchemy import String
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Session
+from sqlalchemy.orm import sessionmaker
 
 SECRET_KEY = os.getenv("SECRET_KEY", "modulo2-2-dev-secret-key")
 ALGORITHM = "HS256"
@@ -31,7 +47,10 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     email: Mapped[str] = mapped_column(String(120), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
-    orders: Mapped[list["Order"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    orders: Mapped[list[Order]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class Order(Base):
@@ -41,7 +60,10 @@ class Order(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     status: Mapped[str] = mapped_column(String(50), default="pending")
     user: Mapped[User] = relationship(back_populates="orders")
-    items: Mapped[list["OrderItem"]] = relationship(back_populates="order", cascade="all, delete-orphan")
+    items: Mapped[list[OrderItem]] = relationship(
+        back_populates="order",
+        cascade="all, delete-orphan",
+    )
 
 
 class OrderItem(Base):
@@ -138,9 +160,9 @@ def create_access_token(subject: str) -> str:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    print("plain_password:",plain_password)
-    print("hashed_password:",hashed_password)
-    print("pwd_context.verify:",pwd_context.verify(plain_password, hashed_password))
+    print("plain_password:", plain_password)
+    print("hashed_password:", hashed_password)
+    print("pwd_context.verify:", pwd_context.verify(plain_password, hashed_password))
     return pwd_context.verify(plain_password, hashed_password)
 
 
@@ -149,7 +171,13 @@ def get_password_hash(password: str) -> str:
 
 
 def get_db_session(database_url: str) -> tuple[Session, sessionmaker]:
-    engine = create_engine(database_url, connect_args={"check_same_thread": False} if database_url.startswith("sqlite") else {}, future=True)
+    engine = create_engine(
+        database_url,
+        connect_args={"check_same_thread": False}
+        if database_url.startswith("sqlite")
+        else {},
+        future=True,
+    )
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     return SessionLocal, SessionLocal
@@ -157,11 +185,17 @@ def get_db_session(database_url: str) -> tuple[Session, sessionmaker]:
 
 def create_app(database_url: str | None = None) -> FastAPI:
     database_url = database_url or os.getenv("DATABASE_URL", "sqlite:///./modulo2_2.db")
-    engine = create_engine(database_url, connect_args={"check_same_thread": False} if database_url.startswith("sqlite") else {}, future=True)
+    engine = create_engine(
+        database_url,
+        connect_args={"check_same_thread": False}
+        if database_url.startswith("sqlite")
+        else {},
+        future=True,
+    )
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
 
-    def get_db() -> Generator[Session, None, None]:
+    def get_db() -> Generator[Session]:
         db = SessionLocal()
         try:
             yield db
@@ -193,17 +227,30 @@ def create_app(database_url: str | None = None) -> FastAPI:
         return user
 
     @app.post("/auth/login", response_model=Token)
-    def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)) -> Token:
+    def login(
+        form_data: OAuth2PasswordRequestForm = Depends(),
+        db: Session = Depends(get_db),
+    ) -> Token:
         user = db.query(User).filter(User.username == form_data.username).first()
         if not user or not verify_password(form_data.password, user.hashed_password):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+            )
         token = create_access_token(user.username)
         return Token(access_token=token)
 
     @app.post("/users/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
     def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
-        if db.query(User).filter((User.username == payload.username) | (User.email == payload.email)).first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username or email already in use")
+        if (
+            db.query(User)
+            .filter((User.username == payload.username) | (User.email == payload.email))
+            .first()
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username or email already in use",
+            )
 
         user = User(
             username=payload.username,
@@ -230,7 +277,10 @@ def create_app(database_url: str | None = None) -> FastAPI:
     ) -> User:
         user = db.query(User).filter(User.id == user_id).first()
         if user is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
         return user
 
     @app.put("/users/{user_id}", response_model=UserRead)
@@ -242,14 +292,18 @@ def create_app(database_url: str | None = None) -> FastAPI:
     ) -> User:
         user = db.query(User).filter(User.id == user_id).first()
         if user is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
         if payload.username is not None:
             user.username = payload.username
         if payload.email is not None:
             user.email = payload.email
         if payload.password is not None:
             user.hashed_password = get_password_hash(payload.password)
-        db.commit(); db.refresh(user)
+        db.commit()
+        db.refresh(user)
         return user
 
     @app.delete("/users/{user_id}", response_model=UserRead)
@@ -260,8 +314,12 @@ def create_app(database_url: str | None = None) -> FastAPI:
     ) -> User:
         user = db.query(User).filter(User.id == user_id).first()
         if user is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        db.delete(user); db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+        db.delete(user)
+        db.commit()
         return user
 
     @app.post("/orders/", response_model=OrderRead, status_code=status.HTTP_201_CREATED)
@@ -271,11 +329,15 @@ def create_app(database_url: str | None = None) -> FastAPI:
         current_user: User = Depends(require_user),
     ) -> Order:
         if db.query(User).filter(User.id == payload.user_id).first() is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
 
         order = Order(user_id=payload.user_id, status=payload.status)
         db.add(order)
-        db.commit(); db.refresh(order)
+        db.commit()
+        db.refresh(order)
         return order
 
     @app.get("/orders/", response_model=list[OrderRead])
@@ -293,7 +355,10 @@ def create_app(database_url: str | None = None) -> FastAPI:
     ) -> Order:
         order = db.query(Order).filter(Order.id == order_id).first()
         if order is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order not found",
+            )
         return order
 
     @app.put("/orders/{order_id}", response_model=OrderRead)
@@ -305,14 +370,21 @@ def create_app(database_url: str | None = None) -> FastAPI:
     ) -> Order:
         order = db.query(Order).filter(Order.id == order_id).first()
         if order is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order not found",
+            )
         if payload.user_id is not None:
             if db.query(User).filter(User.id == payload.user_id).first() is None:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found",
+                )
             order.user_id = payload.user_id
         if payload.status is not None:
             order.status = payload.status
-        db.commit(); db.refresh(order)
+        db.commit()
+        db.refresh(order)
         return order
 
     @app.delete("/orders/{order_id}", response_model=OrderRead)
@@ -323,18 +395,29 @@ def create_app(database_url: str | None = None) -> FastAPI:
     ) -> Order:
         order = db.query(Order).filter(Order.id == order_id).first()
         if order is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
-        db.delete(order); db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order not found",
+            )
+        db.delete(order)
+        db.commit()
         return order
 
-    @app.post("/order-items/", response_model=OrderItemRead, status_code=status.HTTP_201_CREATED)
+    @app.post(
+        "/order-items/",
+        response_model=OrderItemRead,
+        status_code=status.HTTP_201_CREATED,
+    )
     def create_order_item(
         payload: OrderItemCreate,
         db: Session = Depends(get_db),
         current_user: User = Depends(require_user),
     ) -> OrderItem:
         if db.query(Order).filter(Order.id == payload.order_id).first() is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order not found",
+            )
 
         item = OrderItem(
             order_id=payload.order_id,
@@ -343,7 +426,8 @@ def create_app(database_url: str | None = None) -> FastAPI:
             unit_price=payload.unit_price,
         )
         db.add(item)
-        db.commit(); db.refresh(item)
+        db.commit()
+        db.refresh(item)
         return item
 
     @app.get("/order-items/", response_model=list[OrderItemRead])
@@ -361,7 +445,10 @@ def create_app(database_url: str | None = None) -> FastAPI:
     ) -> OrderItem:
         item = db.query(OrderItem).filter(OrderItem.id == item_id).first()
         if item is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order item not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order item not found",
+            )
         return item
 
     @app.put("/order-items/{item_id}", response_model=OrderItemRead)
@@ -373,10 +460,16 @@ def create_app(database_url: str | None = None) -> FastAPI:
     ) -> OrderItem:
         item = db.query(OrderItem).filter(OrderItem.id == item_id).first()
         if item is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order item not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order item not found",
+            )
         if payload.order_id is not None:
             if db.query(Order).filter(Order.id == payload.order_id).first() is None:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Order not found",
+                )
             item.order_id = payload.order_id
         if payload.product_name is not None:
             item.product_name = payload.product_name
@@ -384,7 +477,8 @@ def create_app(database_url: str | None = None) -> FastAPI:
             item.quantity = payload.quantity
         if payload.unit_price is not None:
             item.unit_price = payload.unit_price
-        db.commit(); db.refresh(item)
+        db.commit()
+        db.refresh(item)
         return item
 
     @app.delete("/order-items/{item_id}", response_model=OrderItemRead)
@@ -395,8 +489,12 @@ def create_app(database_url: str | None = None) -> FastAPI:
     ) -> OrderItem:
         item = db.query(OrderItem).filter(OrderItem.id == item_id).first()
         if item is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order item not found")
-        db.delete(item); db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order item not found",
+            )
+        db.delete(item)
+        db.commit()
         return item
 
     return app

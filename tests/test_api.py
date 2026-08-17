@@ -1,9 +1,9 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 from fastapi.testclient import TestClient
-
 from modulo2_2.app import create_app
-
 
 
 def test_user_order_and_orderitem_crud_with_jwt(tmp_path: Path):
@@ -14,7 +14,11 @@ def test_user_order_and_orderitem_crud_with_jwt(tmp_path: Path):
     # Create user
     response = client.post(
         "/users/",
-        json={"username": "alice", "email": "alice@example.com", "password": "secret123"},
+        json={
+            "username": "alice",
+            "email": "alice@example.com",
+            "password": "secret123",
+        },
     )
     assert response.status_code == 201, response.text
     user = response.json()
@@ -52,7 +56,12 @@ def test_user_order_and_orderitem_crud_with_jwt(tmp_path: Path):
     # Create order item
     response = client.post(
         "/order-items/",
-        json={"order_id": order_id, "product_name": "Laptop", "quantity": 2, "unit_price": 999.99},
+        json={
+            "order_id": order_id,
+            "product_name": "Laptop",
+            "quantity": 2,
+            "unit_price": 999.99,
+        },
         headers=headers,
     )
     assert response.status_code == 201, response.text
@@ -82,7 +91,12 @@ def test_user_order_and_orderitem_crud_with_jwt(tmp_path: Path):
 
     response = client.put(
         f"/order-items/{item['id']}",
-        json={"order_id": order_id, "product_name": "Mouse", "quantity": 3, "unit_price": 25.5},
+        json={
+            "order_id": order_id,
+            "product_name": "Mouse",
+            "quantity": 3,
+            "unit_price": 25.5,
+        },
         headers=headers,
     )
     assert response.status_code == 200, response.text
