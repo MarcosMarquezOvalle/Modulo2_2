@@ -154,7 +154,9 @@ class Token(BaseModel):
 
 
 def create_access_token(subject: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES,
+    )
     payload = {"sub": subject, "exp": expire}
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -162,8 +164,9 @@ def create_access_token(subject: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     print("plain_password:", plain_password)
     print("hashed_password:", hashed_password)
-    print("pwd_context.verify:", pwd_context.verify(plain_password, hashed_password))
-    return pwd_context.verify(plain_password, hashed_password)
+    result = pwd_context.verify(plain_password, hashed_password)
+    print("pwd_context.verify:", result)
+    return result
 
 
 def get_password_hash(password: str) -> str:
@@ -184,7 +187,10 @@ def get_db_session(database_url: str) -> tuple[Session, sessionmaker]:
 
 
 def create_app(database_url: str | None = None) -> FastAPI:
-    database_url = database_url or os.getenv("DATABASE_URL", "sqlite:///./modulo2_2.db")
+    database_url = database_url or os.getenv(
+        "DATABASE_URL",
+        "sqlite:///./modulo2_2.db",
+    )
     engine = create_engine(
         database_url,
         connect_args={"check_same_thread": False}
@@ -231,8 +237,17 @@ def create_app(database_url: str | None = None) -> FastAPI:
         form_data: OAuth2PasswordRequestForm = Depends(),
         db: Session = Depends(get_db),
     ) -> Token:
-        user = db.query(User).filter(User.username == form_data.username).first()
-        if not user or not verify_password(form_data.password, user.hashed_password):
+        user = (
+            db.query(User)
+            .filter(
+                User.username == form_data.username,
+            )
+            .first()
+        )
+        if not user or not verify_password(
+            form_data.password,
+            user.hashed_password,
+        ):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",
@@ -240,11 +255,20 @@ def create_app(database_url: str | None = None) -> FastAPI:
         token = create_access_token(user.username)
         return Token(access_token=token)
 
-    @app.post("/users/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-    def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
+    @app.post(
+        "/users/",
+        response_model=UserRead,
+        status_code=status.HTTP_201_CREATED,
+    )
+    def create_user(
+        payload: UserCreate,
+        db: Session = Depends(get_db),
+    ) -> User:
         if (
             db.query(User)
-            .filter((User.username == payload.username) | (User.email == payload.email))
+            .filter(
+                (User.username == payload.username) | (User.email == payload.email),
+            )
             .first()
         ):
             raise HTTPException(
@@ -322,7 +346,11 @@ def create_app(database_url: str | None = None) -> FastAPI:
         db.commit()
         return user
 
-    @app.post("/orders/", response_model=OrderRead, status_code=status.HTTP_201_CREATED)
+    @app.post(
+        "/orders/",
+        response_model=OrderRead,
+        status_code=status.HTTP_201_CREATED,
+    )
     def create_order(
         payload: OrderCreate,
         db: Session = Depends(get_db),
@@ -375,7 +403,14 @@ def create_app(database_url: str | None = None) -> FastAPI:
                 detail="Order not found",
             )
         if payload.user_id is not None:
-            if db.query(User).filter(User.id == payload.user_id).first() is None:
+            if (
+                db.query(User)
+                .filter(
+                    User.id == payload.user_id,
+                )
+                .first()
+                is None
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="User not found",
@@ -465,7 +500,13 @@ def create_app(database_url: str | None = None) -> FastAPI:
         db: Session = Depends(get_db),
         current_user: User = Depends(require_user),
     ) -> OrderItem:
-        item = db.query(OrderItem).filter(OrderItem.id == item_id).first()
+        item = (
+            db.query(OrderItem)
+            .filter(
+                OrderItem.id == item_id,
+            )
+            .first()
+        )
         if item is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
