@@ -513,7 +513,14 @@ def create_app(database_url: str | None = None) -> FastAPI:
                 detail="Order item not found",
             )
         if payload.order_id is not None:
-            if db.query(Order).filter(Order.id == payload.order_id).first() is None:
+            if (
+                db.query(Order)
+                .filter(
+                    Order.id == payload.order_id,
+                )
+                .first()
+                is None
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Order not found",
